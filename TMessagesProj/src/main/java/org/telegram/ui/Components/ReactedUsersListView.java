@@ -37,6 +37,8 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
+import tw.nekomimi.nekogram.filters.ReactionFilterHelper;
+
 public class ReactedUsersListView extends FrameLayout {
 
     public final static int VISIBLE_ITEMS = 6;
@@ -198,6 +200,9 @@ public class ReactedUsersListView extends FrameLayout {
     public ReactedUsersListView setSeenUsers(List<ReactedHeaderView.UserSeen> users) {
         if (userReactions != null && !userReactions.isEmpty()) {
             for (ReactedHeaderView.UserSeen p : users) {
+                if (p == null || ReactionFilterHelper.isBlockedPeer(currentAccount, message.getDialogId(), p.dialogId)) {
+                    continue;
+                }
                 TLObject user = p.user;
                 if (user != null && p.date > 0) {
                     for (int i = 0; i < userReactions.size(); ++i) {
@@ -213,6 +218,9 @@ public class ReactedUsersListView extends FrameLayout {
         }
         List<TLRPC.TL_messagePeerReaction> nr = new ArrayList<>(users.size());
         for (ReactedHeaderView.UserSeen p : users) {
+            if (p == null || ReactionFilterHelper.isBlockedPeer(currentAccount, message.getDialogId(), p.dialogId)) {
+                continue;
+            }
             ArrayList<TLRPC.MessagePeerReaction> userReactions = peerReactionMap.get(p.dialogId);
             if (userReactions != null) {
                continue;
@@ -277,8 +285,12 @@ public class ReactedUsersListView extends FrameLayout {
 
                     HashSet<ReactionsLayoutInBubble.VisibleReaction> visibleCustomEmojiReactions = new HashSet<>();
                     for (int i = 0; i < res.reactions.size(); i++) {
-                        userReactions.add(res.reactions.get(i));
-                        long peerId = MessageObject.getPeerId(res.reactions.get(i).peer_id);
+                        var reaction = res.reactions.get(i);
+                        if (reaction != null && ReactionFilterHelper.isBlockedPeer(currentAccount, message.getDialogId(), MessageObject.getPeerId(reaction.peer_id))) {
+                            continue;
+                        }
+                        userReactions.add(reaction);
+                        long peerId = MessageObject.getPeerId(reaction.peer_id);
                         ArrayList<TLRPC.MessagePeerReaction> currentUserReactions = peerReactionMap.get(peerId);
                         if (currentUserReactions == null) {
                             currentUserReactions = new ArrayList<>();
@@ -291,12 +303,21 @@ public class ReactedUsersListView extends FrameLayout {
                         }
 
 
-                        ReactionsLayoutInBubble.VisibleReaction visibleReaction = ReactionsLayoutInBubble.VisibleReaction.fromTL(res.reactions.get(i).reaction);
+                        ReactionsLayoutInBubble.VisibleReaction visibleReaction = ReactionsLayoutInBubble.VisibleReaction.fromTL(reaction.reaction);
                         if (visibleReaction.documentId != 0) {
                             visibleCustomEmojiReactions.add(visibleReaction);
                         }
-                        currentUserReactions.add(res.reactions.get(i));
+                        currentUserReactions.add(reaction);
                         peerReactionMap.put(peerId, currentUserReactions);
+                    }
+
+                    offset = res.next_offset;
+                    if (offset == null)
+                        canLoadMore = false;
+                    if (userReactions.size() < VISIBLE_ITEMS && canLoadMore && !res.reactions.isEmpty() && ReactionFilterHelper.shouldFilter(currentAccount, message.getDialogId())) {
+                        isLoading = false;
+                        load();
+                        return;
                     }
 
                     if (filter == null) {
@@ -329,9 +350,6 @@ public class ReactedUsersListView extends FrameLayout {
 
                         isLoaded = true;
                     }
-                    offset = res.next_offset;
-                    if (offset == null)
-                        canLoadMore = false;
                     isLoading = false;
                 } else {
                     isLoading = false;

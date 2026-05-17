@@ -146,6 +146,7 @@ import me.vkryl.android.animator.BoolAnimator;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.filters.AyuFilter;
+import tw.nekomimi.nekogram.filters.ReactionFilterHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.utils.AndroidUtil;
 import xyz.nextalone.nagram.NaConfig;
@@ -1602,8 +1603,9 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                         drawCount2 = true;
                         boolean lastMessageIsReaction = false;
                         if (dialogsType == 0 && currentDialogId > 0 && message.isOutOwner() && message.messageOwner.reactions != null && message.messageOwner.reactions.recent_reactions != null && !message.messageOwner.reactions.recent_reactions.isEmpty() && reactionMentionCount > 0) {
-                            TLRPC.MessagePeerReaction lastReaction = message.messageOwner.reactions.recent_reactions.get(0);
-                            if (lastReaction.unread && lastReaction.peer_id.user_id != 0 &&lastReaction.peer_id.user_id != UserConfig.getInstance(currentAccount).clientUserId) {
+                            TLRPC.MessagePeerReaction lastReaction = ReactionFilterHelper.getFirstReaction(currentAccount, message.getDialogId(), message.messageOwner.reactions);
+                            long lastReactionPeerId = lastReaction == null ? 0L : MessageObject.getPeerId(lastReaction.peer_id);
+                            if (lastReaction != null && lastReaction.unread && lastReactionPeerId > 0 && lastReactionPeerId != UserConfig.getInstance(currentAccount).clientUserId) {
                                 lastMessageIsReaction = true;
                                 ReactionsLayoutInBubble.VisibleReaction visibleReaction = ReactionsLayoutInBubble.VisibleReaction.fromTL(lastReaction.reaction);
                                 currentMessagePaint = Theme.dialogs_messagePrintingPaint[paintIndex];
@@ -2027,7 +2029,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
                     } else {
                         drawMention = false;
                     }
-                    drawReactionMention = reactionMentionCount > 0;
+                    drawReactionMention = ReactionFilterHelper.shouldShowReactionMention(currentAccount, reactionMentionCount, message);
                     drawPollVotesMention = pollVotesMentionCount > 0;
                 }
 
@@ -5454,7 +5456,7 @@ public class DialogCell extends BaseCell implements StoriesListPlaceProvider.Ava
             sb.append(LocaleController.formatPluralString("AccDescrMentionCount", mentionCount));
             sb.append(". ");
         }
-        if (reactionMentionCount > 0) {
+        if (ReactionFilterHelper.shouldShowReactionMention(currentAccount, reactionMentionCount, message)) {
             sb.append(getString(R.string.AccDescrMentionReaction));
             sb.append(". ");
         }

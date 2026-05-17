@@ -51,6 +51,8 @@ import org.telegram.ui.Components.StatusBadgeComponent;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import tw.nekomimi.nekogram.filters.ReactionFilterHelper;
+
 public class MessageSeenView extends FrameLayout {
 
     ArrayList<Long> peerIds = new ArrayList<>();
@@ -120,6 +122,9 @@ public class MessageSeenView extends FrameLayout {
                         if (finalFromId == peerId) {
                             continue;
                         }
+                        if (ReactionFilterHelper.isBlockedPeer(currentAccount, messageObject.getDialogId(), peerId)) {
+                            continue;
+                        }
                         TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(peerId);
                         allPeers.add(new Pair<>(peerId, date));
                         if (true || user == null) {
@@ -130,6 +135,9 @@ public class MessageSeenView extends FrameLayout {
                     } else if (object instanceof Long) {
                         Long peerId = (Long) object;
                         if (finalFromId == peerId) {
+                            continue;
+                        }
+                        if (ReactionFilterHelper.isBlockedPeer(currentAccount, messageObject.getDialogId(), peerId)) {
                             continue;
                         }
                         if (peerId > 0) {

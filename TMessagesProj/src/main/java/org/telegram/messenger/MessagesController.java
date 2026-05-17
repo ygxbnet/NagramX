@@ -133,6 +133,7 @@ import java.util.stream.Collectors;
 
 import tw.nekomimi.nekogram.NekoConfig;
 import tw.nekomimi.nekogram.filters.AyuFilter;
+import tw.nekomimi.nekogram.filters.ReactionFilterHelper;
 import tw.nekomimi.nekogram.helpers.ChatsHelper;
 import tw.nekomimi.nekogram.helpers.LocalNameHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
@@ -827,6 +828,10 @@ public class MessagesController extends BaseController implements NotificationCe
             if (needRequest) {
                 final TLMethod<TLRPC.messages_Messages> request;
                 if (isReactions) {
+                    if (ReactionFilterHelper.shouldFilter(currentAccount, dialogId)) {
+                        ReactionFilterHelper.requestNextReactionMention(this, currentAccount, dialogId, topicId, 0, callback);
+                        return;
+                    }
                     TLRPC.TL_messages_getUnreadReactions req = new TLRPC.TL_messages_getUnreadReactions();
                     req.peer = getMessagesController().getInputPeer(dialogId);
                     req.limit = 1;
@@ -18997,7 +19002,7 @@ public class MessagesController extends BaseController implements NotificationCe
 
                 if (update.updateUnreadState) {
                     SparseBooleanArray sparseBooleanArray = new SparseBooleanArray();
-                    sparseBooleanArray.put(update.msg_id, MessageObject.hasUnreadReactions(update.reactions));
+                    sparseBooleanArray.put(update.msg_id, ReactionFilterHelper.hasUnreadReactions(currentAccount, dialogId, update.reactions));
                     final long topicId = isMonoForum(dialogId) && ChatObject.canManageMonoForum(currentAccount, dialogId) ? DialogObject.getPeerDialogId(update.saved_peer_id) : update.top_msg_id;
                     if (BuildVars.DEBUG_PRIVATE_VERSION) {
                         FileLog.d("check reactions for " + dialogId + " " + topicId);
@@ -20258,7 +20263,7 @@ public class MessagesController extends BaseController implements NotificationCe
                             if (unreadReactions == null) {
                                 unreadReactions = new SparseBooleanArray();
                             }
-                            unreadReactions.put(messageObject.getId(), MessageObject.hasUnreadReactions(messageObject.messageOwner));
+                            unreadReactions.put(messageObject.getId(), ReactionFilterHelper.hasUnreadReactions(currentAccount, messageObject.messageOwner));
 
                             if (messageObject != null && messageObject.messageOwner instanceof TLRPC.TL_messageService && messageObject.messageOwner.action instanceof TLRPC.TL_messageActionConferenceCall && VoIPService.getSharedInstance() != null) {
                                 VoIPService.getSharedInstance().processMessageUpdate(messageObject);
@@ -20635,7 +20640,9 @@ public class MessagesController extends BaseController implements NotificationCe
                         changed = true;
                     }
                 } else {
-                    needReload = true;
+                    if (!ReactionFilterHelper.shouldFilter(currentAccount, dialogId) || hasUnreadReaction) {
+                        needReload = true;
+                    }
                 }
                 if (hasUnreadReaction) {
                     newUnreadMessages.add(messageId);

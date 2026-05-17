@@ -120,6 +120,7 @@ import java.util.regex.Pattern;
 import me.vkryl.core.BitwiseUtils;
 
 import tw.nekomimi.nekogram.NekoConfig;
+import tw.nekomimi.nekogram.filters.ReactionFilterHelper;
 import tw.nekomimi.nekogram.helpers.EntitiesHelper;
 import xyz.nextalone.nagram.NaConfig;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
@@ -713,7 +714,7 @@ public class MessageObject {
         if (messageOwner.reactions == null || messageOwner.reactions.recent_reactions == null || messageOwner.reactions.recent_reactions.isEmpty()) {
             return null;
         }
-        return messageOwner.reactions.recent_reactions.get(0);
+        return ReactionFilterHelper.getFirstReaction(currentAccount, getDialogId(), messageOwner.reactions);
     }
 
     public void markPollVotesAsRead() {
@@ -3936,7 +3937,7 @@ public class MessageObject {
     }
 
     public boolean hasReactions() {
-        return messageOwner.reactions != null && !messageOwner.reactions.results.isEmpty();
+        return ReactionFilterHelper.hasReactions(currentAccount, messageOwner);
     }
 
     public boolean hasReaction(ReactionsLayoutInBubble.VisibleReaction reaction) {
@@ -3944,7 +3945,7 @@ public class MessageObject {
         for (int i = 0; i < messageOwner.reactions.results.size(); ++i) {
             TLRPC.ReactionCount rc = messageOwner.reactions.results.get(i);
             if (reaction.isSame(rc.reaction)) {
-                return true;
+                return !ReactionFilterHelper.shouldFilter(currentAccount, messageOwner) || ReactionFilterHelper.getReactionCount(currentAccount, getDialogId(), messageOwner.reactions, rc) > 0;
             }
         }
         return false;

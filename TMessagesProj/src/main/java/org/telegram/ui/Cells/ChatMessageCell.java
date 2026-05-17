@@ -252,7 +252,7 @@ import me.vkryl.android.animator.FactorAnimator;
 import me.vkryl.core.BitwiseUtils;
 
 import tw.nekomimi.nekogram.NekoConfig;
-import tw.nekomimi.nekogram.NekoXConfig;
+import tw.nekomimi.nekogram.filters.ReactionFilterHelper;
 import tw.nekomimi.nekogram.helpers.MessageHelper;
 import tw.nekomimi.nekogram.helpers.TimeStringHelper;
 import tw.nekomimi.nekogram.helpers.TranscribeHelper;
@@ -26998,15 +26998,16 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                         sb.append(formatPluralString("AccDescrNumberOfReplies", getRepliesCount()));
                     }
                     if (currentMessageObject.messageOwner.reactions != null && currentMessageObject.messageOwner.reactions.results != null) {
-                        if (currentMessageObject.messageOwner.reactions.results.size() == 1) {
-                            TLRPC.ReactionCount reaction = currentMessageObject.messageOwner.reactions.results.get(0);
+                        var visibleReactionCounts = ReactionFilterHelper.getReactionCounts(currentAccount, currentMessageObject.getDialogId(), currentMessageObject.messageOwner.reactions);
+                        if (visibleReactionCounts.size() == 1) {
+                            TLRPC.ReactionCount reaction = visibleReactionCounts.get(0);
                             String emoticon = reaction.reaction instanceof TLRPC.TL_reactionEmoji ? ((TLRPC.TL_reactionEmoji) reaction.reaction).emoticon : "";
                             if (reaction.count == 1) {
                                 sb.append("\n");
                                 boolean isMe = false;
                                 String userName = "";
                                 if (currentMessageObject.messageOwner.reactions.recent_reactions != null && currentMessageObject.messageOwner.reactions.recent_reactions.size() == 1) {
-                                    TLRPC.MessagePeerReaction recentReaction = currentMessageObject.messageOwner.reactions.recent_reactions.get(0);
+                                    TLRPC.MessagePeerReaction recentReaction = ReactionFilterHelper.getFirstReaction(currentAccount, currentMessageObject.getDialogId(), currentMessageObject.messageOwner.reactions);
                                     if (recentReaction != null) {
                                         TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(MessageObject.getPeerId(recentReaction.peer_id));
                                         isMe = UserObject.isUserSelf(user);
@@ -27024,11 +27025,11 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                                 sb.append("\n");
                                 sb.append(formatPluralString("AccDescrNumberOfPeopleReactions", reaction.count, emoticon));
                             }
-                        } else {
+                        } else if (!visibleReactionCounts.isEmpty()) {
                             sb.append(getString("Reactions", R.string.Reactions)).append((": "));
-                            final int count = currentMessageObject.messageOwner.reactions.results.size();
+                            final int count = visibleReactionCounts.size();
                             for (int i = 0; i < count; ++i) {
-                                TLRPC.ReactionCount reactionCount = currentMessageObject.messageOwner.reactions.results.get(i);
+                                TLRPC.ReactionCount reactionCount = visibleReactionCounts.get(i);
                                 String emoticon = reactionCount.reaction instanceof TLRPC.TL_reactionEmoji ? ((TLRPC.TL_reactionEmoji) reactionCount.reaction).emoticon : "";
                                 if (reactionCount != null) {
                                     sb.append(emoticon).append(" ").append(reactionCount.count + "");
